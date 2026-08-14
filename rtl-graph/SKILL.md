@@ -1,21 +1,22 @@
 ---
 name: rtl-graph
-description: Generate, repair, and visually validate concise module-centric RTL data-flow diagrams from Verilog or SystemVerilog without Yosys. Use when a user names a concrete RTL module and wants a draw.io, SVG, or Graphviz diagram focused on how primary data and essential control move between that module and its relevant child-module instances, while omitting routine ports, clocks, resets, configuration, status, and incidental logic.
+description: Generate, repair, and visually validate module-centric RTL data-flow diagrams from Verilog or SystemVerilog without Yosys. Use when a user names a concrete RTL module and wants a draw.io, SVG, or Graphviz diagram that keeps every necessary child module on the main data path, labels boxes with module type names, and shows data movement while omitting port lists, internal signal text, valid/ready/control lines, clocks, resets, and unrelated logic.
 ---
 
 # RTL Graph
 
-Create a restrained data-flow diagram whose scope is one concrete RTL module. Explain the important processing path across relevant module instances, not the complete port list or every connection.
+Create a balanced data-flow diagram whose scope is one concrete RTL module. Preserve the necessary chain of child modules that transforms, buffers, routes, or emits the main data; simplify signals, not the module structure.
 
 ## Non-negotiable default
 
 - Make the user-selected module the single scope boundary and visual focus.
-- Show the direct child instances that participate in the primary data path. Omit unrelated instantiated modules.
+- Show every direct child module that participates in the primary data path. Do not collapse a multi-module chain into one generic block.
+- If a relevant child is only a wrapper and its internal submodules are necessary to understand the data transformation, expand that child by one additional level. Stop when the functional path is understandable.
 - Show only boundary ports and internal nets needed to trace primary data from input, through processing modules, to output.
-- Show a control signal only when it changes data-path behavior or is required to understand a transfer, such as `valid`, `ready`, `enable`, `select`, `grant`, `flush`, or a write/read qualifier.
+- Draw data edges only. Omit `valid`, `ready`, `enable`, `select`, `grant`, `flush`, read/write qualifiers, FSM transitions, and other control-flow signals.
 - Omit clocks and resets unless the user explicitly asks for timing, CDC, or reset structure.
 - Omit routine configuration, debug, scan, status, counters, interrupts, error reporting, and unused sideband signals unless they directly determine the shown data path.
-- Prefer one labeled bus edge over multiple related scalar edges. Combine handshake pairs when practical, for example `valid/ready`.
+- Prefer one data edge per logical payload or bus. Edge labels may name the data object or bus, but keep them short.
 - Do not infer FIFO, FSM, arbiter, mux, pipeline, interface, clock-domain, datapath, or control blocks from `always`, `assign`, signal names, or general RTL behavior.
 - Do not add legends, notes boxes, protocol blocks, input/output interface blocks, clock/reset blocks, domain containers, or decorative junctions unless the user explicitly requests them.
 - Do not recursively expand grandchildren or show leaf implementation logic by default.
@@ -25,8 +26,8 @@ Create a restrained data-flow diagram whose scope is one concrete RTL module. Ex
 
 1. Locate the exact requested module and inspect its declaration, direct instances, net connections, assignments, and mux/enable conditions that determine inter-module data movement.
 2. Run `scripts/rtl_extract.py` for a first-pass module/port/instance inventory. Treat its output as a draft: verify parameterized interfaces, interfaces/modports, generate blocks, macros, binds, and implicit connections against source.
-3. Trace candidate paths from meaningful module inputs to outputs. Rank signals as `primary-data`, `key-control`, or `omit` using the rules above.
-4. Build the normalized JSON described in `references/graph-schema.md`. Include the focus boundary, relevant direct instances, primary-data edges, and the minimum key-control edges needed to explain selection or transfer.
+3. Trace data dependencies from meaningful module inputs to outputs across instance port mappings, assignments, and intermediate nets. Compute the data-path module cone: retain every instantiated module touched by those dependencies.
+4. Build the normalized JSON described in `references/graph-schema.md`. Include the focus boundary, all necessary data-path modules, and data edges only.
 5. Compare every node and edge against source syntax. Remove connections that add completeness but not understanding. Never invent functional blocks.
 6. Run `scripts/graph_lint.py graph.json`. Resolve every error and review warnings.
 7. Lay out primary data left-to-right. Prefer ELK/ELK.js; otherwise use `scripts/render_dot.py`, or `scripts/render_svg.py` for a small acyclic preview. When draw.io MCP is available, create cells from computed layout rather than improvising coordinates.
@@ -36,12 +37,12 @@ Create a restrained data-flow diagram whose scope is one concrete RTL module. Ex
 ## Layout contract
 
 - Put the selected primary input at the left boundary, processing instances in flow order, and the selected output at the right boundary.
-- Use orthogonal edges. Route feedback below the main flow and key control above or below it.
+- Use orthogonal data edges. Route feedback below the main flow.
 - Align nodes to a grid. Use consistent widths within a semantic tier and at least 40 px node spacing.
 - Use at most one focus-module container and one level of direct child instances.
 - Replace long cross-page edges with paired named connectors when direct routing harms readability.
-- Make primary-data edges visually stronger than key-control edges. Label buses as `name[msb:lsb]`; use thin dashed lines for key control.
-- Treat more than 12 child instances as a signal to group or omit details, not to invent higher-level functional blocks.
+- Use consistent solid data edges. Label only useful data objects or buses such as `pixels`, `packet`, or `data[31:0]`.
+- When many instances participate, preserve the end-to-end module chain and group parallel lanes only if their function and ordering remain clear.
 
 Read `references/style-guide.md` before styling or reviewing a rendered result.
 
@@ -52,7 +53,9 @@ Render after every material layout change. Inspect at normal viewing scale and a
 - Is the requested module unmistakably the main subject within three seconds?
 - Does every non-focus node map to a relevant explicit direct instance in the source?
 - Can a reviewer trace the main input-to-output data path without reading the RTL?
-- Are only necessary boundary ports, primary-data buses, and key-control signals shown?
+- Are all necessary data-path modules present, with no unexplained jump between distant stages?
+- Do internal boxes contain only module type names, with no port lists, signal names, widths, or instance-name prefixes?
+- Are only data-flow arrows shown, with no `valid`, `ready`, enable, selection, or other control lines?
 - Have clocks, resets, configuration, debug, status, and unrelated sidebands been omitted by default?
 - Are any nodes, labels, ports, or arrowheads clipped or overlapping?
 - Does any edge cross a node, label, or unrelated container boundary?
@@ -74,5 +77,5 @@ If any answer is unfavorable, change the graph structure or layout constraints b
 ## Failure handling
 
 - For unsupported SystemVerilog constructs, record the limitation and verify manually from source.
-- If the diagram remains dense, remove secondary controls and unrelated instances before changing layout or adding pages.
+- If the diagram remains dense, remove signal labels and unrelated instances first; do not remove necessary data-path modules.
 - If source connectivity is ambiguous because of preprocessing, ask for the active define/include configuration or label the uncertain edge.

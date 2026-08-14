@@ -1,6 +1,6 @@
 # RTL diagram style guide
 
-Use one restrained palette:
+Use one restrained palette. Color may distinguish broad module functions, but keep the box label equal to the RTL module type name:
 
 | Meaning | Fill | Stroke |
 |---|---|---|
@@ -15,6 +15,6 @@ Use rounded rectangles for functional blocks, plain containers for hierarchy/clo
 
 Use dark gray solid lines for data, blue-gray solid lines for control, purple dashed lines for clock/CDC, and red only for a specifically requested error path. Use thicker lines for buses, not additional colors. Avoid gradients, shadows, 3D effects, decorative icons, and per-module colors.
 
-For the default module-dataflow view, emphasize `primary-data` with 2 px solid edges and render `key-control` with 1 px dashed edges. Do not include clock/reset styling unless the user explicitly requests those signals.
+For the default module-dataflow view, render every retained edge as a 2 px solid data edge. Do not render control, clock, or reset lines.
 
-Keep edge labels short. Prefer `valid`, `ready`, `addr[31:0]`, or `data[63:0]`; move protocol explanations into notes or a legend.
+Keep edge labels short and data-oriented. Prefer `packet`, `pixels`, `samples`, `addr[31:0]`, or `data[63:0]`. Never label an edge `valid`, `ready`, `enable`, or another control signal.

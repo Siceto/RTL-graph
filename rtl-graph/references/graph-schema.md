@@ -23,7 +23,9 @@ Use this compact JSON contract between RTL inspection and layout:
     },
     {
       "id": "u_fifo",
-      "label": "u_fifo : fifo",
+      "label": "fifo",
+      "module_type": "fifo",
+      "instance_name": "u_fifo",
       "kind": "module",
       "role": "instance",
       "parent": "top",
@@ -47,6 +49,8 @@ Exactly one node must have `role: focus`, and its `id` must equal `focus_module`
 
 Node `id` values must be unique and stable. A port endpoint is written as `node_id.port_id`; a node-only endpoint is permitted for hierarchy edges.
 
-Every edge must use `importance: primary-data` or `importance: key-control`. Primary data includes payload, address, command, or stored data that moves through the selected path. Key control includes only transfer/selection signals required to interpret that path. In module scope, every edge must come from explicit source connectivity and use `inferred: false`. Do not include clock/reset edges by default.
+Every internal instance node must store `module_type` and `instance_name`, but set the visible `label` to `module_type` only. Do not render instance-name prefixes, port lists, signal names, widths, or descriptions inside the box.
+
+Every edge must use `kind: data` and `importance: primary-data`. Data includes payload, address, command, or stored data that moves through the selected module chain. In module scope, every edge must come from explicit source connectivity and use `inferred: false`. Never include valid/ready/control, clock, or reset edges in the default view.
 
 Optional layout fields such as `x`, `y`, `width`, and `height` may be attached after layout. Keep them out of the source-of-truth graph when possible.

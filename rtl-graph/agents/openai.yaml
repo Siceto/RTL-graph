@@ -1,4 +1,4 @@
 interface:
   display_name: "RTL Graph"
-  short_description: "Trace key RTL data flow between modules"
-  default_prompt: "Use $rtl-graph to show the primary data flow and only essential control across the relevant child modules of one specified RTL module."
+  short_description: "Show RTL data flow through necessary modules"
+  default_prompt: "Use $rtl-graph to show data flowing through every necessary child module, label boxes only with module type names, and omit all control signals."

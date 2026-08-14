@@ -55,6 +55,11 @@ def main():
                 errors.append(f"node {node.get('id')}: module scope allows only focus or instance roles")
             if node.get("role") == "instance" and node.get("kind") in {"interface", "clock", "container"}:
                 errors.append(f"node {node.get('id')}: auxiliary interface/clock/container nodes are forbidden in module scope")
+            if node.get("role") == "instance":
+                if not node.get("module_type") or not node.get("instance_name"):
+                    errors.append(f"node {node.get('id')}: instance requires module_type and instance_name metadata")
+                if node.get("label") != node.get("module_type"):
+                    errors.append(f"node {node.get('id')}: visible label must equal module_type")
     edge_ids = set()
     for edge in data.get("edges", []):
         eid = edge.get("id")
@@ -65,10 +70,10 @@ def main():
             errors.append(f"edge {eid}: invalid kind {edge.get('kind')}")
         if data.get("scope") == "module" and edge.get("inferred") is not False:
             errors.append(f"edge {eid}: module scope requires inferred=false")
-        if data.get("scope") == "module" and edge.get("importance") not in {"primary-data", "key-control"}:
-            errors.append(f"edge {eid}: module scope requires primary-data or key-control importance")
-        if data.get("scope") == "module" and edge.get("kind") in {"clock", "reset", "cdc"}:
-            warnings.append(f"edge {eid}: clock/reset/CDC is normally omitted from module-dataflow view")
+        if data.get("scope") == "module" and edge.get("importance") != "primary-data":
+            errors.append(f"edge {eid}: module scope requires primary-data importance")
+        if data.get("scope") == "module" and edge.get("kind") != "data":
+            errors.append(f"edge {eid}: module-dataflow allows data edges only")
         for key in ("source", "target"):
             if not endpoint_exists(str(edge.get(key, "")), nodes):
                 errors.append(f"edge {eid}: unknown {key} {edge.get(key)}")
@@ -79,10 +84,11 @@ def main():
                 errors.append(f"geometry overlap: {first['id']} and {second['id']}")
     if data.get("scope") == "module" and len(nodes) > 13:
         warnings.append("module-centric diagram has more than 12 direct instances; consider showing fewer children")
-    key_controls = [e for e in data.get("edges", []) if e.get("importance") == "key-control"]
-    primary_data = [e for e in data.get("edges", []) if e.get("importance") == "primary-data"]
-    if len(key_controls) > max(4, len(primary_data)):
-        warnings.append("key-control edges are crowding the primary data flow; omit secondary controls")
+    control_names = {"valid", "ready", "enable", "en", "grant", "select", "sel", "flush"}
+    for edge in data.get("edges", []):
+        label_tokens = set(str(edge.get("label", "")).lower().replace("/", "_").split("_"))
+        if label_tokens & control_names:
+            errors.append(f"edge {edge.get('id')}: control-oriented label is forbidden in module-dataflow")
     for message in errors:
         print(f"ERROR: {message}")
     for message in warnings:
