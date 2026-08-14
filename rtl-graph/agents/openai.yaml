@@ -1,4 +1,4 @@
 interface:
   display_name: "RTL Graph"
-  short_description: "Generate clean RTL architecture diagrams without Yosys"
-  default_prompt: "Use $rtl-graph to generate and visually validate a clean RTL block diagram."
+  short_description: "Trace key RTL data flow between modules"
+  default_prompt: "Use $rtl-graph to show the primary data flow and only essential control across the relevant child modules of one specified RTL module."

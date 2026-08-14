@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 COLORS = {
+    "module": ("#F8FAFC", "#334155"),
     "logic": ("#F8FAFC", "#475569"), "storage": ("#DBEAFE", "#2563EB"),
     "control": ("#FFEDD5", "#EA580C"), "interface": ("#DCFCE7", "#16A34A"),
     "clock": ("#F3E8FF", "#9333EA"), "container": ("#FFFFFF", "#94A3B8")
@@ -26,9 +27,11 @@ def main():
         lines.append(f"  {q(node['id'])} [label={q(node.get('label', node['id']))}, fillcolor={q(fill)}, color={q(stroke)}];")
     for edge in data["edges"]:
         kind = edge.get("kind", "data")
-        style = "dashed" if kind in {"clock", "reset", "cdc"} else "solid"
+        importance = edge.get("importance")
+        style = "dashed" if importance == "key-control" or kind in {"clock", "reset", "cdc"} else "solid"
+        penwidth = "2.0" if importance == "primary-data" else "1.0"
         source, target = edge["source"].split(".")[0], edge["target"].split(".")[0]
-        lines.append(f"  {q(source)} -> {q(target)} [label={q(edge.get('label', ''))}, color={q(EDGE[kind])}, style={q(style)}];")
+        lines.append(f"  {q(source)} -> {q(target)} [label={q(edge.get('label', ''))}, color={q(EDGE[kind])}, style={q(style)}, penwidth={q(penwidth)}];")
     lines.append("}")
     Path(args.output).write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote {args.output}")

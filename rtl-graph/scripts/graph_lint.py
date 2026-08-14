@@ -5,8 +5,8 @@ import json
 import sys
 from pathlib import Path
 
-VALID_VIEWS = {"hierarchy", "datapath", "control", "clock-reset"}
-VALID_KINDS = {"logic", "storage", "control", "interface", "clock", "container"}
+VALID_VIEWS = {"module-dataflow", "module", "hierarchy", "datapath", "control", "clock-reset"}
+VALID_KINDS = {"module", "logic", "storage", "control", "interface", "clock", "container"}
 VALID_EDGES = {"data", "control", "clock", "reset", "cdc", "hierarchy"}
 
 def endpoint_exists(endpoint, nodes):
@@ -27,7 +27,7 @@ def main():
     args = ap.parse_args()
     data = json.loads(Path(args.graph).read_text(encoding="utf-8"))
     errors, warnings = [], []
-    for key in ("title", "view", "nodes", "edges"):
+    for key in ("title", "scope", "focus_module", "view", "nodes", "edges"):
         if key not in data:
             errors.append(f"missing top-level field: {key}")
     if data.get("view") not in VALID_VIEWS:
@@ -44,6 +44,17 @@ def main():
         port_ids = [p.get("id") for p in node.get("ports", [])]
         if len(port_ids) != len(set(port_ids)):
             errors.append(f"node {nid}: duplicate port id")
+    if data.get("scope") == "module":
+        focus = [n for n in nodes.values() if n.get("role") == "focus"]
+        if len(focus) != 1:
+            errors.append("module scope requires exactly one focus node")
+        elif focus[0].get("id") != data.get("focus_module"):
+            errors.append("focus node id must equal focus_module")
+        for node in nodes.values():
+            if node.get("role") not in {"focus", "instance"}:
+                errors.append(f"node {node.get('id')}: module scope allows only focus or instance roles")
+            if node.get("role") == "instance" and node.get("kind") in {"interface", "clock", "container"}:
+                errors.append(f"node {node.get('id')}: auxiliary interface/clock/container nodes are forbidden in module scope")
     edge_ids = set()
     for edge in data.get("edges", []):
         eid = edge.get("id")
@@ -52,6 +63,12 @@ def main():
         edge_ids.add(eid)
         if edge.get("kind") not in VALID_EDGES:
             errors.append(f"edge {eid}: invalid kind {edge.get('kind')}")
+        if data.get("scope") == "module" and edge.get("inferred") is not False:
+            errors.append(f"edge {eid}: module scope requires inferred=false")
+        if data.get("scope") == "module" and edge.get("importance") not in {"primary-data", "key-control"}:
+            errors.append(f"edge {eid}: module scope requires primary-data or key-control importance")
+        if data.get("scope") == "module" and edge.get("kind") in {"clock", "reset", "cdc"}:
+            warnings.append(f"edge {eid}: clock/reset/CDC is normally omitted from module-dataflow view")
         for key in ("source", "target"):
             if not endpoint_exists(str(edge.get(key, "")), nodes):
                 errors.append(f"edge {eid}: unknown {key} {edge.get(key)}")
@@ -60,8 +77,12 @@ def main():
         for second in visible[i + 1:]:
             if overlaps(first, second):
                 errors.append(f"geometry overlap: {first['id']} and {second['id']}")
-    if len(nodes) > 20 or len(data.get("edges", [])) > 30:
-        warnings.append("dense diagram: consider splitting by view, stage, hierarchy, or clock domain")
+    if data.get("scope") == "module" and len(nodes) > 13:
+        warnings.append("module-centric diagram has more than 12 direct instances; consider showing fewer children")
+    key_controls = [e for e in data.get("edges", []) if e.get("importance") == "key-control"]
+    primary_data = [e for e in data.get("edges", []) if e.get("importance") == "primary-data"]
+    if len(key_controls) > max(4, len(primary_data)):
+        warnings.append("key-control edges are crowding the primary data flow; omit secondary controls")
     for message in errors:
         print(f"ERROR: {message}")
     for message in warnings:
