@@ -27,11 +27,15 @@ def main():
     args = ap.parse_args()
     data = json.loads(Path(args.graph).read_text(encoding="utf-8"))
     errors, warnings = [], []
-    for key in ("title", "scope", "focus_module", "view", "nodes", "edges"):
+    for key in ("title", "scope", "focus_module", "view", "display_mode", "layout_mode", "nodes", "edges"):
         if key not in data:
             errors.append(f"missing top-level field: {key}")
     if data.get("view") not in VALID_VIEWS:
         errors.append(f"invalid view: {data.get('view')}")
+    if data.get("scope") == "module" and data.get("display_mode") != "expanded-instances":
+        errors.append("module-dataflow requires display_mode=expanded-instances")
+    if data.get("scope") == "module" and data.get("layout_mode") != "flat-rails":
+        errors.append("module-dataflow requires layout_mode=flat-rails")
     nodes = {}
     for node in data.get("nodes", []):
         nid = node.get("id")
@@ -60,6 +64,9 @@ def main():
                     errors.append(f"node {node.get('id')}: instance requires module_type and instance_name metadata")
                 if node.get("label") != node.get("module_type"):
                     errors.append(f"node {node.get('id')}: visible label must equal module_type")
+                for forbidden in ("count", "multiplicity", "badge"):
+                    if forbidden in node:
+                        errors.append(f"node {node.get('id')}: aggregated instance field {forbidden} is forbidden")
     edge_ids = set()
     for edge in data.get("edges", []):
         eid = edge.get("id")

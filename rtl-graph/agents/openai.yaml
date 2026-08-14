@@ -1,4 +1,4 @@
 interface:
   display_name: "RTL Graph"
-  short_description: "Show RTL data flow through necessary modules"
-  default_prompt: "Use $rtl-graph to show data flowing through every necessary child module, label boxes only with module type names, and omit all control signals."
+  short_description: "Draw flat RTL module arrays and data rails"
+  default_prompt: "Use $rtl-graph to preserve repeated RTL instances, align module stages, and show shared data buses as clean rails without control clutter."
